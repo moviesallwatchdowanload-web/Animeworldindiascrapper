@@ -1,0 +1,8 @@
+{
+    "name": "Anime World India",
+    "description": "WatchAnimeWorld.one scraper.",
+    "manifestVersion": 1,
+    "pluginLists": [
+        "https://raw.githubusercontent.com/moviesallwatchdowanload-web/Anime-world-India/main/builds/plugins.json"
+    ]
+}

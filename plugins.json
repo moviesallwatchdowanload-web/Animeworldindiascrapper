@@ -1,0 +1,19 @@
+[
+    {
+        "url": "https://raw.githubusercontent.com/moviesallwatchdowanload-web/Anime-world-India/main/builds/WatchAnimeWorld.cs3",
+        "status": 1,
+        "version": 1,
+        "apiVersion": 1,
+        "fileSize": 0,
+        "fileHash": "",
+        "iconUrl": "https://watchanimeworld.one/favicon.ico",
+        "name": "WatchAnimeWorld",
+        "internalName": "WatchAnimeWorld",
+        "description": "Anime World India",
+        "authors": ["outcome"],
+        "repositoryUrl": "https://github.com/moviesallwatchdowanload-web/Anime-world-India",
+        "language": "hi",
+        "tvTypes": ["Anime", "Movie", "Cartoon"],
+        "deprecated": false
+    }
+]
