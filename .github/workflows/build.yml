@@ -31,7 +31,7 @@ jobs:
 
       - name: Clone cloudstream plugin template
         run: |
-          git -c credential.helper= clone --depth=1 https://github.com/recloudstream/cloudstream-plugin-template.git /tmp/template
+          git -c credential.helper= clone --depth=1 https://github.com/cloudstream3/plugin-template.git /tmp/template
           rm -rf /tmp/template/app/src/main/java/com/example
           cp -r WatchAnimeWorld /tmp/template/app/
 
