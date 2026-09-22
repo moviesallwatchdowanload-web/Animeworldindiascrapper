@@ -13,12 +13,18 @@ jobs:
     env:
       ANDROID_HOME: /usr/local/lib/android/sdk
       ANDROID_SDK_ROOT: /usr/local/lib/android/sdk
-      GIT_TERMINAL_PROMPT: 0
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout plugin repo
+        uses: actions/checkout@v4
         with:
-          persist-credentials: false
+          path: plugin
+
+      - name: Checkout cloudstream template
+        uses: actions/checkout@v4
+        with:
+          repository: recloudstream/cloudstream-plugin-template
+          path: template
 
       - name: Setup JDK 17
         uses: actions/setup-java@v4
@@ -29,22 +35,20 @@ jobs:
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
 
-      - name: Clone cloudstream template + patch JitPack
+      - name: Prepare template
         run: |
-          git -c credential.helper= clone --depth=1 https://github.com/recloudstream/cloudstream-plugin-template.git /tmp/template
-          rm -rf /tmp/template/app/src/main/java/com/example
+          rm -rf template/app/src/main/java/com/example
+          cp -r plugin/WatchAnimeWorld template/app/
 
-          # Find and patch settings.gradle.kts — fix JitPack master-SNAPSHOT issue
-          SETTINGS=/tmp/template/settings.gradle.kts
-          if [ -f "$SETTINGS" ]; then
-            echo "=== ORIGINAL settings.gradle.kts ==="
-            cat "$SETTINGS"
-            echo ""
+          # Patch settings.gradle.kts for JitPack master-SNAPSHOT issue
+          SETTINGS=template/settings.gradle.kts
+          echo "=== ORIGINAL ==="
+          cat "$SETTINGS"
+          echo ""
 
-            # Replace plain jitpack maven with metadata-source-filtered one
-            python3 - <<'PYEOF'
+          python3 - <<'PYEOF'
           import re
-          path = "/tmp/template/settings.gradle.kts"
+          path = "template/settings.gradle.kts"
           with open(path) as f:
               content = f.read()
 
@@ -60,41 +64,30 @@ jobs:
           }'''
 
           content = re.sub(r'maven\\(["\']https://jitpack\\.io["\']\\)', jitpack_block, content)
+
           with open(path, "w") as f:
               f.write(content)
           PYEOF
 
-            echo "=== PATCHED settings.gradle.kts ==="
-            cat "$SETTINGS"
-          fi
-
-          # Also patch build.gradle.kts if it has master-SNAPSHOT directly
-          find /tmp/template -name "build.gradle.kts" -exec sh -c '
-            for f; do
-              if grep -q "master-SNAPSHOT" "$f" 2>/dev/null; then
-                echo "Patching: $f"
-                sed -i "s|master-SNAPSHOT|main-SNAPSHOT|g" "$f"
-              fi
-            done
-          ' sh {} +
-
-          cp -r WatchAnimeWorld /tmp/template/app/
+          echo "=== PATCHED ==="
+          cat "$SETTINGS"
 
       - name: Build .cs3
         run: |
-          cd /tmp/template
+          cd template
           chmod +x gradlew
-          ./gradlew make --refresh-dependencies --stacktrace 2>&1 | tail -200
+          ./gradlew make --refresh-dependencies --stacktrace 2>&1 | tail -250
 
       - name: Copy output
         if: success()
         run: |
-          mkdir -p builds
-          find /tmp/template -name "*.cs3" -exec cp {} builds/WatchAnimeWorld.cs3 \;
-          ls -la builds/
+          mkdir -p plugin/builds
+          find template -name "*.cs3" -exec cp {} plugin/builds/WatchAnimeWorld.cs3 \;
+          ls -la plugin/builds/
 
       - name: Update plugins.json
         if: success()
+        working-directory: plugin
         run: |
           FILE=builds/WatchAnimeWorld.cs3
           SIZE=$(stat -c%s "$FILE")
@@ -104,6 +97,7 @@ jobs:
 
       - name: Commit builds
         if: success()
+        working-directory: plugin
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
