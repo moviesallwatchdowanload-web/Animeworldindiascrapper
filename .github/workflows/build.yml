@@ -29,25 +29,72 @@ jobs:
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
 
-      - name: Clone cloudstream plugin template
+      - name: Clone cloudstream template + patch JitPack
         run: |
-          git -c credential.helper= clone --depth=1 https://github.com/cloudstream3/plugin-template.git /tmp/template
+          git -c credential.helper= clone --depth=1 https://github.com/recloudstream/cloudstream-plugin-template.git /tmp/template
           rm -rf /tmp/template/app/src/main/java/com/example
+
+          # Find and patch settings.gradle.kts — fix JitPack master-SNAPSHOT issue
+          SETTINGS=/tmp/template/settings.gradle.kts
+          if [ -f "$SETTINGS" ]; then
+            echo "=== ORIGINAL settings.gradle.kts ==="
+            cat "$SETTINGS"
+            echo ""
+
+            # Replace plain jitpack maven with metadata-source-filtered one
+            python3 - <<'PYEOF'
+          import re
+          path = "/tmp/template/settings.gradle.kts"
+          with open(path) as f:
+              content = f.read()
+
+          jitpack_block = '''maven("https://jitpack.io") {
+              content {
+                  includeGroup("com.github.recloudstream")
+              }
+              metadataSources {
+                  gradleMetadata()
+                  mavenPom()
+                  artifact()
+              }
+          }'''
+
+          content = re.sub(r'maven\\(["\']https://jitpack\\.io["\']\\)', jitpack_block, content)
+          with open(path, "w") as f:
+              f.write(content)
+          PYEOF
+
+            echo "=== PATCHED settings.gradle.kts ==="
+            cat "$SETTINGS"
+          fi
+
+          # Also patch build.gradle.kts if it has master-SNAPSHOT directly
+          find /tmp/template -name "build.gradle.kts" -exec sh -c '
+            for f; do
+              if grep -q "master-SNAPSHOT" "$f" 2>/dev/null; then
+                echo "Patching: $f"
+                sed -i "s|master-SNAPSHOT|main-SNAPSHOT|g" "$f"
+              fi
+            done
+          ' sh {} +
+
           cp -r WatchAnimeWorld /tmp/template/app/
 
       - name: Build .cs3
         run: |
           cd /tmp/template
           chmod +x gradlew
-          ./gradlew make
+          ./gradlew make --refresh-dependencies --stacktrace 2>&1 | tail -200
 
       - name: Copy output
+        if: success()
         run: |
           mkdir -p builds
           find /tmp/template -name "*.cs3" -exec cp {} builds/WatchAnimeWorld.cs3 \;
           ls -la builds/
 
       - name: Update plugins.json
+        if: success()
         run: |
           FILE=builds/WatchAnimeWorld.cs3
           SIZE=$(stat -c%s "$FILE")
@@ -56,6 +103,7 @@ jobs:
           mv plugins.json.tmp plugins.json
 
       - name: Commit builds
+        if: success()
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
