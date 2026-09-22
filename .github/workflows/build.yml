@@ -21,16 +21,16 @@ jobs:
           java-version: 17
 
       - name: Setup Android SDK
-        uses: android-actions/setup-android@v3
+        uses: android-actions/setup-android@v3.2.1
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
 
       - name: Clone cloudstream plugin template
         run: |
           git clone --depth=1 https://github.com/recloudstream/cloudstream-plugin-template.git /tmp/template
           rm -rf /tmp/template/app/src/main/java/com/example
           cp -r WatchAnimeWorld /tmp/template/app/
-
-      - name: Setup Gradle
-        uses: gradle/gradle-build-action@v3
 
       - name: Build .cs3
         run: |
